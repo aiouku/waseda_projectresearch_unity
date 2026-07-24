@@ -56,10 +56,16 @@ public class FreeLookRightClickGate : MonoBehaviour
         if (x != null) x.Enabled = look;
         if (y != null) y.Enabled = look;
 
-        if (buttonInput != Vector2.zero && orbitalFollow != null)
+        // ボタン入力 + 矢印キー入力を合算して軌道軸に適用
+        Vector2 arrowInput = new Vector2(
+            -Input.GetAxisRaw("Horizontal"), // 左右反転(右キー→右回転)
+             Input.GetAxisRaw("Vertical")
+        );
+        Vector2 totalInput = buttonInput + arrowInput;
+        if (totalInput != Vector2.zero && orbitalFollow != null)
         {
-            orbitalFollow.HorizontalAxis.Value += buttonInput.x * buttonRotateSpeed * Time.deltaTime;
-            orbitalFollow.VerticalAxis.Value   += buttonInput.y * buttonRotateSpeed * Time.deltaTime;
+            orbitalFollow.HorizontalAxis.Value += totalInput.x * buttonRotateSpeed * Time.deltaTime;
+            orbitalFollow.VerticalAxis.Value   += totalInput.y * buttonRotateSpeed * Time.deltaTime;
         }
     }
 }

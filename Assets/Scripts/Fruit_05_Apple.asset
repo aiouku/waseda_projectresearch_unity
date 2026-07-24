@@ -16,4 +16,4 @@ MonoBehaviour:
   fruitName: Apple
   radius: 1.08
   material: {fileID: 2100000, guid: 955f0f72febae4c149e312c8f4164e87, type: 2}
-  score: 0
+  score: 21

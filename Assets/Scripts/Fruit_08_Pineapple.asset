@@ -16,4 +16,4 @@ MonoBehaviour:
   fruitName: Pineapple
   radius: 1.89
   material: {fileID: 2100000, guid: cd8cfe5cb7c80475ead247d6924addf9, type: 2}
-  score: 0
+  score: 45

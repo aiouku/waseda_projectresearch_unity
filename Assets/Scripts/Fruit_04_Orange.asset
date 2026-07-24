@@ -16,4 +16,4 @@ MonoBehaviour:
   fruitName: Orange
   radius: 0.87
   material: {fileID: 2100000, guid: 4f7124ef9315f4c17b67ce3be5ae1606, type: 2}
-  score: 0
+  score: 15

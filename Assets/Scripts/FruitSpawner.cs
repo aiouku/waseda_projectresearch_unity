@@ -19,6 +19,8 @@ public class FruitSpawner : MonoBehaviour
     [Header("Drop Mode")]
     public DropMode currentMode = DropMode.Crane;
     public Text modeText;          // Canvas > Interaction の Text
+    public Text fruitText;         // Canvas > Fruit の Text (現在操作中)
+    public Text nextFruitText;     // Canvas > NextFruit の Text (次のフルーツ)
     public Transform pointerOrigin; // レーザー用。未設定ならCamera.mainで代用(将来XRコントローラーを割り当てる想定)
     public Vector3 laserOriginWorldPos = new Vector3(3.5f, 9f, -3f); // 固定発射点（Inspectorで調整可）
 
@@ -29,6 +31,7 @@ public class FruitSpawner : MonoBehaviour
 
     private GameObject previewFruit;
     private FruitData nextData;
+    private FruitData upcomingData; // 次の次のフルーツ(先読み)
     private float lastDropTime;
     private LineRenderer laserLine;
     private Light laserLight;
@@ -54,6 +57,13 @@ public class FruitSpawner : MonoBehaviour
 
     void Start()
     {
+        // タイトル画面で選択されたモードを適用
+        if (PlayerPrefs.HasKey("DropMode"))
+        {
+            currentMode = (DropMode)PlayerPrefs.GetInt("DropMode");
+            PlayerPrefs.DeleteKey("DropMode");
+        }
+
         SetupLaserLine();
         SetupTrajectoryLine();
         PrepareNext();
@@ -100,8 +110,6 @@ public class FruitSpawner : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Space)) ToggleMode();
-
         // UIボタン上でのマウスDown開始をブロックする(投擲の誤発射防止)
         if (Input.GetMouseButtonDown(0) && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             throwBlockedByUI = true;
@@ -311,16 +319,25 @@ public class FruitSpawner : MonoBehaviour
             DropMode.ParabolicThrow => "放物線投擲",
             _ => currentMode.ToString(),
         };
-        modeText.text = $"モード: {label} (Space で切り替え)";
+        modeText.text = $"モード: {label} ";
     }
 
     void PrepareNext()
     {
-        nextData = spawnableFruits[Random.Range(0, spawnableFruits.Length)];
+        // 先読みがなければ初回として両方ランダム生成
+        if (upcomingData == null)
+            upcomingData = spawnableFruits[Random.Range(0, spawnableFruits.Length)];
+
+        nextData = upcomingData;
+        upcomingData = spawnableFruits[Random.Range(0, spawnableFruits.Length)];
+
         previewFruit = Instantiate(fruitPrefab, new Vector3(0, spawnY, 0), Quaternion.identity);
         previewFruit.GetComponent<Rigidbody>().isKinematic = true;
         previewFruit.GetComponent<Fruit>().Initialize(nextData);
         UpdatePreviewVisibility();
+
+        if (fruitText != null) fruitText.text = "次のフルーツ: " + nextData.fruitName;
+        if (nextFruitText != null) nextFruitText.text = "今のフルーツ" + upcomingData.fruitName;
     }
 
     // クレーン/レーザーはその場に落とす(velocity = 0)、放物線投擲は推定したスイング速度で投げる

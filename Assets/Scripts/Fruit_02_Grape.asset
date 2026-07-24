@@ -16,4 +16,4 @@ MonoBehaviour:
   fruitName: Grape
   radius: 0.5
   material: {fileID: 2100000, guid: 5dcbc6700504e4201a2a531554ef4ba9, type: 2}
-  score: 0
+  score: 6

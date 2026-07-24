@@ -16,4 +16,4 @@ MonoBehaviour:
   fruitName: Melon
   radius: 2.22
   material: {fileID: 2100000, guid: a81b30e862de64aae9b97ab0594321a9, type: 2}
-  score: 0
+  score: 55

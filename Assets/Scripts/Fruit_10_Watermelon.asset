@@ -16,4 +16,4 @@ MonoBehaviour:
   fruitName: Watermelon
   radius: 2.58
   material: {fileID: 2100000, guid: b74aac10d5b1147e78289d6917864ce2, type: 2}
-  score: 0
+  score: 66

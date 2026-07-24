@@ -16,4 +16,4 @@ MonoBehaviour:
   fruitName: Peach
   radius: 1.69
   material: {fileID: 2100000, guid: e2c302a86713c411cb1d00ded869f7c8, type: 2}
-  score: 0
+  score: 36

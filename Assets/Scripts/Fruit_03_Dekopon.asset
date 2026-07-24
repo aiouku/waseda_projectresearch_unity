@@ -16,4 +16,4 @@ MonoBehaviour:
   fruitName: Dekopon
   radius: 0.6
   material: {fileID: 2100000, guid: e9da8ed65e7c24757ae91de3d1fdf6ae, type: 2}
-  score: 0
+  score: 10
