@@ -1,13 +1,51 @@
 using Unity.Cinemachine;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class FreeLookRightClickGate : MonoBehaviour
 {
+    public float buttonRotateSpeed = 90f; // ボタン長押し時の回転速度(度/秒)
+
     CinemachineInputAxisController axisController;
+    CinemachineOrbitalFollow orbitalFollow;
+    Vector2 buttonInput;
 
     void Awake()
     {
         axisController = GetComponent<CinemachineInputAxisController>();
+        orbitalFollow = GetComponent<CinemachineOrbitalFollow>();
+    }
+
+    void Start()
+    {
+        WireButton("Left",  new Vector2( 1,  0));
+        WireButton("Right", new Vector2(-1,  0));
+        WireButton("Up",    new Vector2( 0,  1));
+        WireButton("Down",  new Vector2( 0, -1));
+    }
+
+    void WireButton(string objectName, Vector2 dir)
+    {
+        var go = GameObject.Find(objectName);
+        if (go == null)
+        {
+            Debug.LogWarning($"FreeLookRightClickGate: '{objectName}' が見つかりません");
+            return;
+        }
+        var et = go.GetComponent<EventTrigger>() ?? go.AddComponent<EventTrigger>();
+
+        // pressed フラグで「本当に押されている間のみ」減算し、二重減算を防ぐ
+        bool pressed = false;
+        AddTrigger(et, EventTriggerType.PointerDown, _ => { if (!pressed) { buttonInput += dir; pressed = true; } });
+        AddTrigger(et, EventTriggerType.PointerUp,   _ => { if (pressed) { buttonInput -= dir; pressed = false; } });
+        AddTrigger(et, EventTriggerType.PointerExit, _ => { if (pressed) { buttonInput -= dir; pressed = false; } });
+    }
+
+    void AddTrigger(EventTrigger et, EventTriggerType type, UnityEngine.Events.UnityAction<BaseEventData> action)
+    {
+        var entry = new EventTrigger.Entry { eventID = type };
+        entry.callback.AddListener(action);
+        et.triggers.Add(entry);
     }
 
     void Update()
@@ -17,5 +55,11 @@ public class FreeLookRightClickGate : MonoBehaviour
         var y = axisController.GetController("Look Orbit Y");
         if (x != null) x.Enabled = look;
         if (y != null) y.Enabled = look;
+
+        if (buttonInput != Vector2.zero && orbitalFollow != null)
+        {
+            orbitalFollow.HorizontalAxis.Value += buttonInput.x * buttonRotateSpeed * Time.deltaTime;
+            orbitalFollow.VerticalAxis.Value   += buttonInput.y * buttonRotateSpeed * Time.deltaTime;
+        }
     }
 }

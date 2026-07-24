@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
@@ -11,14 +12,15 @@ public class FruitSpawner : MonoBehaviour
     public FruitData[] spawnableFruits;  // level 0〜4 のみ入れる
     public FruitData[] allFruits;        // level 0〜10 全部
     public float spawnY = 6f;
-    public float moveRangeX = 1.8f;
-    public float moveRangeZ = 1.8f;
+    public float moveRangeX = 1.5f;
+    public float moveRangeZ = 1.5f;
     public float dropCooldown = 0.7f;
 
     [Header("Drop Mode")]
     public DropMode currentMode = DropMode.Crane;
     public Text modeText;          // Canvas > Interaction の Text
     public Transform pointerOrigin; // レーザー用。未設定ならCamera.mainで代用(将来XRコントローラーを割り当てる想定)
+    public Vector3 laserOriginWorldPos = new Vector3(3.5f, 9f, -3f); // 固定発射点（Inspectorで調整可）
 
     [Header("Parabolic Throw")]
     public Transform controllerTransform; // 投擲用。未設定ならマウス(落下面への投影)で代用
@@ -34,6 +36,7 @@ public class FruitSpawner : MonoBehaviour
     private InputAction throwButtonAction;
     private readonly List<(Vector3 pos, float time)> swingSamples = new();
     private bool isSwinging;
+    private bool throwBlockedByUI;
 
     void OnEnable()
     {
@@ -99,6 +102,12 @@ public class FruitSpawner : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Space)) ToggleMode();
 
+        // UIボタン上でのマウスDown開始をブロックする(投擲の誤発射防止)
+        if (Input.GetMouseButtonDown(0) && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            throwBlockedByUI = true;
+        if (Input.GetMouseButtonUp(0))
+            throwBlockedByUI = false;
+
         if (previewFruit == null) return;
 
         switch (currentMode)
@@ -126,7 +135,8 @@ public class FruitSpawner : MonoBehaviour
             previewFruit.transform.position = pos;
         }
 
-        if (Input.GetMouseButtonDown(0) && Time.time - lastDropTime > dropCooldown)
+        if (Input.GetMouseButtonDown(0) && Time.time - lastDropTime > dropCooldown
+            && !(EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()))
         {
             FinishDrop(Vector3.zero);
         }
@@ -140,36 +150,50 @@ public class FruitSpawner : MonoBehaviour
         return plane.Raycast(ray, out float distance) ? ray.GetPoint(distance) : null;
     }
 
-    // レーザーポインター方式: コントローラーから放射されるRaycastで落下地点を指示する
-    // pointerOrigin未割り当て時(デスクトップ確認用)はマウスのスクリーン座標からレイを飛ばす
+    // レーザーポインター方式: 固定発射点からビームを飛ばし、Physics.Raycastで実際のフルーツ/床面を照準する
     Vector3? GetLaserTarget()
     {
-        Vector3 originPos;
-        Ray ray;
-        if (pointerOrigin != null)
+        // 発射点: XRコントローラー割当済みならその位置、なければ固定ワールド座標
+        Vector3 originPos = pointerOrigin != null ? pointerOrigin.position : laserOriginWorldPos;
+
+        // マウス/コントローラーの向きをカメラ経由で取得してPhysics.Raycastを飛ばす
+        Ray aimRay = pointerOrigin != null
+            ? new Ray(pointerOrigin.position, pointerOrigin.forward)
+            : Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        Vector3 hitPoint;
+        if (Physics.Raycast(aimRay, out RaycastHit hit, Mathf.Infinity,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
         {
-            originPos = pointerOrigin.position;
-            ray = new Ray(pointerOrigin.position, pointerOrigin.forward);
+            hitPoint = hit.point;
         }
         else
         {
-            originPos = Camera.main.transform.position;
-            ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            // 何も当たらない場合は床面(Y=0)にフォールバック
+            var floor = new Plane(Vector3.up, Vector3.zero);
+            if (!floor.Raycast(aimRay, out float dist))
+            {
+                laserLine.enabled = false;
+                laserLight.enabled = false;
+                return null;
+            }
+            hitPoint = aimRay.GetPoint(dist);
         }
 
-        var plane = new Plane(Vector3.up, new Vector3(0, spawnY, 0));
-        Vector3? result = plane.Raycast(ray, out float distance) ? ray.GetPoint(distance) : null;
-        var endPoint = result ?? ray.GetPoint(10f);
+        // X,Zをボックス範囲内にクランプ
+        hitPoint.x = Mathf.Clamp(hitPoint.x, -moveRangeX, moveRangeX);
+        hitPoint.z = Mathf.Clamp(hitPoint.z, -moveRangeZ, moveRangeZ);
 
+        // 固定発射点→着弾点へのビームを描画
         laserLine.enabled = true;
         laserLine.SetPosition(0, originPos);
-        laserLine.SetPosition(1, endPoint);
+        laserLine.SetPosition(1, hitPoint);
 
-        // 着弾点のすぐ上に光源を置き、真下のフルーツを照らす
+        // 着弾点を照らすスポットライト
         laserLight.enabled = true;
-        laserLight.transform.position = endPoint + Vector3.up * 0.3f;
+        laserLight.transform.position = hitPoint + Vector3.up * 0.5f;
 
-        return result;
+        return hitPoint; // UpdatePointerDropはX,Zのみ使用しspawnYは維持される
     }
 
     // 放物線投擲方式: ボタンを押しながら動かした軌跡(スイング)から速度を推定し、離した時にその速度で投げる
@@ -202,8 +226,8 @@ public class FruitSpawner : MonoBehaviour
         }
     }
 
-    bool IsThrowInputHeld() => controllerTransform != null ? throwButtonAction.IsPressed() : Input.GetMouseButton(0);
-    bool WasThrowInputReleased() => controllerTransform != null ? throwButtonAction.WasReleasedThisFrame() : Input.GetMouseButtonUp(0);
+    bool IsThrowInputHeld() => controllerTransform != null ? throwButtonAction.IsPressed() : Input.GetMouseButton(0) && !throwBlockedByUI;
+    bool WasThrowInputReleased() => controllerTransform != null ? throwButtonAction.WasReleasedThisFrame() : Input.GetMouseButtonUp(0) && !throwBlockedByUI;
 
     // スイングの基準位置: コントローラーがあればその位置、なければマウスを落下面に投影した位置で代用
     Vector3? GetSwingSourcePosition()
@@ -268,11 +292,13 @@ public class FruitSpawner : MonoBehaviour
         UpdateModeText();
     }
 
-    // レーザーポインター中はプレビュー中のフルーツを非表示にする(着地点はレーザーだけで示す)
+    // レーザーポインター中はプレビューフルーツを非表示＆コライダー無効(Raycastに干渉しないよう)
     void UpdatePreviewVisibility()
     {
         if (previewFruit == null) return;
-        previewFruit.GetComponent<MeshRenderer>().enabled = currentMode != DropMode.LaserPointer;
+        bool isLaser = currentMode == DropMode.LaserPointer;
+        previewFruit.GetComponent<MeshRenderer>().enabled = !isLaser;
+        previewFruit.GetComponent<Collider>().enabled = !isLaser;
     }
 
     void UpdateModeText()
@@ -304,7 +330,8 @@ public class FruitSpawner : MonoBehaviour
         rb.isKinematic = false;
         rb.linearVelocity = velocity;
         previewFruit.GetComponent<Fruit>().isDropped = true;
-        previewFruit.GetComponent<MeshRenderer>().enabled = true; // 落下後は常に表示
+        previewFruit.GetComponent<MeshRenderer>().enabled = true;
+        previewFruit.GetComponent<Collider>().enabled = true; // レーザーモード中に無効化していたコライダーを復元
         previewFruit = null;
         lastDropTime = Time.time;
         Invoke(nameof(PrepareNext), dropCooldown);

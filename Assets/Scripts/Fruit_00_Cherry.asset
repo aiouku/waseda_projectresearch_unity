@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FruitData
   level: 0
   fruitName: Cherry
-  radius: 0.2
+  radius: 0.3
   material: {fileID: 2100000, guid: 0db4e6e6beca04cf3a0010a9627ab939, type: 2}
   score: 0

@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FruitData
   level: 1
   fruitName: Strawberry
-  radius: 0.28
+  radius: 0.42
   material: {fileID: 2100000, guid: 1f923742270af4f678daf68e7df53369, type: 2}
   score: 0
