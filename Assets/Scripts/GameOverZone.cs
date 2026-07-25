@@ -1,32 +1,41 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GameOverZone : MonoBehaviour
 {
-    public float overflowDelay = 1.5f; // カゴから溢れた状態が何秒続いたらゲームオーバーか
+    public float overflowDelay = 1.5f;
 
-    void OnTriggerEnter(Collider other)
+    readonly Dictionary<Fruit, Coroutine> tracked = new();
+
+    void OnTriggerStay(Collider other)
     {
         var fruit = other.GetComponent<Fruit>();
         if (fruit == null || !fruit.isDropped || fruit.isMerging) return;
-        StartCoroutine(CheckOverflow(fruit));
+        if (!tracked.ContainsKey(fruit))
+            tracked[fruit] = StartCoroutine(CheckOverflow(fruit));
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+        var fruit = other.GetComponent<Fruit>();
+        if (fruit != null) CancelTracking(fruit);
+    }
+
+    void CancelTracking(Fruit fruit)
+    {
+        if (tracked.TryGetValue(fruit, out var co))
+        {
+            if (co != null) StopCoroutine(co);
+            tracked.Remove(fruit);
+        }
     }
 
     IEnumerator CheckOverflow(Fruit fruit)
     {
-        float elapsed = 0f;
-        while (elapsed < overflowDelay)
-        {
-            yield return null;
+        yield return new WaitForSeconds(overflowDelay);
 
-            // フルーツが消えた(合体など)場合はキャンセル
-            if (fruit == null || !fruit.isDropped || fruit.isMerging) yield break;
-
-            // カゴの高さより下に戻ったらキャンセル
-            if (fruit.transform.position.y < transform.position.y) yield break;
-
-            elapsed += Time.deltaTime;
-        }
+        if (fruit == null || !fruit.isDropped || fruit.isMerging) yield break;
 
         GameManager.Instance?.GameOver();
     }

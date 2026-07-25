@@ -24,6 +24,9 @@ public class FruitSpawner : MonoBehaviour
     public Transform pointerOrigin; // レーザー用。未設定ならCamera.mainで代用(将来XRコントローラーを割り当てる想定)
     public Vector3 laserOriginWorldPos = new Vector3(3.5f, 9f, -3f); // 固定発射点（Inspectorで調整可）
 
+    [Header("Audio")]
+    public AudioClip mergeSound;
+
     [Header("Parabolic Throw")]
     public Transform controllerTransform; // 投擲用。未設定ならマウス(落下面への投影)で代用
     public float maxThrowSpeed = 8f;
@@ -300,13 +303,11 @@ public class FruitSpawner : MonoBehaviour
         UpdateModeText();
     }
 
-    // レーザーポインター中はプレビューフルーツを非表示＆コライダー無効(Raycastに干渉しないよう)
+    // レーザーポインター中はプレビューフルーツを非表示にする
     void UpdatePreviewVisibility()
     {
         if (previewFruit == null) return;
-        bool isLaser = currentMode == DropMode.LaserPointer;
-        previewFruit.GetComponent<MeshRenderer>().enabled = !isLaser;
-        previewFruit.GetComponent<Collider>().enabled = !isLaser;
+        previewFruit.GetComponent<MeshRenderer>().enabled = currentMode != DropMode.LaserPointer;
     }
 
     void UpdateModeText()
@@ -333,6 +334,7 @@ public class FruitSpawner : MonoBehaviour
 
         previewFruit = Instantiate(fruitPrefab, new Vector3(0, spawnY, 0), Quaternion.identity);
         previewFruit.GetComponent<Rigidbody>().isKinematic = true;
+        previewFruit.GetComponent<Collider>().enabled = false; // 落下前は当たり判定を無効化
         previewFruit.GetComponent<Fruit>().Initialize(nextData);
         UpdatePreviewVisibility();
 
@@ -358,6 +360,9 @@ public class FruitSpawner : MonoBehaviour
     {
         int nextLevel = a.data.level + 1;
         Vector3 mid = (a.transform.position + b.transform.position) * 0.5f;
+
+        if (mergeSound != null)
+            AudioSource.PlayClipAtPoint(mergeSound, mid);
 
         Destroy(a.gameObject);
         Destroy(b.gameObject);
