@@ -56,12 +56,14 @@ public class GameManager : MonoBehaviour
     void SendScoreToUnityroom()
     {
 #if UNITY_WEBGL
-        // モードに応じてボード番号を決定
-        // ボード1: Crane, ボード2: LaserPointer, ボード3: ParabolicThrow
+        // unityroomはスコアボードを最大2つまでしか作れないため、3モード分を1ボードに統合する。
+        // モードは小数部に埋め込む: +0.1=Crane, +0.2=LaserPointer, +0.3=ParabolicThrow
+        // (scoreは常に整数のため、小数部と衝突しない。ボード側の書式を「小数(第1位)」にしておくこと)
         int dropMode = PlayerPrefs.GetInt("DropMode", 0);
-        int boardNo = dropMode + 1; // 1, 2, 3
+        float modeTag = (dropMode + 1) * 0.1f;
+        float encodedScore = Mathf.Round((score + modeTag) * 10f) / 10f;
 
-        UnityroomApiClient.Instance.SendScore(boardNo, score, ScoreboardWriteMode.HighScoreDesc);
+        UnityroomApiClient.Instance.SendScore(1, encodedScore, ScoreboardWriteMode.HighScoreDesc);
 #endif
     }
 
