@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if UNITY_WEBGL
+using unityroom.Api;
+#endif
 
 public class GameManager : MonoBehaviour
 {
@@ -25,7 +28,13 @@ public class GameManager : MonoBehaviour
         if (backToTitleButton != null)
             backToTitleButton.onClick.AddListener(BackToTitle);
     }
-
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            BackToTitle();
+        }
+    }
     public void AddScore(int s)
     {
         if (isGameOver) return;
@@ -40,6 +49,20 @@ public class GameManager : MonoBehaviour
 
         if (gameOverPanel != null) gameOverPanel.SetActive(true);
         if (scoreText != null) scoreText.text = $"スコア: {score}";
+
+        SendScoreToUnityroom();
+    }
+
+    void SendScoreToUnityroom()
+    {
+#if UNITY_WEBGL
+        // モードに応じてボード番号を決定
+        // ボード1: Crane, ボード2: LaserPointer, ボード3: ParabolicThrow
+        int dropMode = PlayerPrefs.GetInt("DropMode", 0);
+        int boardNo = dropMode + 1; // 1, 2, 3
+
+        UnityroomApiClient.Instance.SendScore(boardNo, score, ScoreboardWriteMode.HighScoreDesc);
+#endif
     }
 
     void BackToTitle()

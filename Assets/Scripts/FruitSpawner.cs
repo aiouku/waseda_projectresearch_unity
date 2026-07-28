@@ -30,6 +30,7 @@ public class FruitSpawner : MonoBehaviour
     [Header("Parabolic Throw")]
     public Transform controllerTransform; // 投擲用。未設定ならマウス(落下面への投影)で代用
     public float maxThrowSpeed = 8f;
+    public float minThrowSpeed = 0.3f; // これ未満はマウスのブレとみなして無視する(長押し停止時に変な方向へ飛ぶのを防止)
     public float swingSampleWindow = 0.15f; // スイング速度を計算するための直近サンプル時間(秒)
 
     private GameObject previewFruit;
@@ -261,7 +262,9 @@ public class FruitSpawner : MonoBehaviour
         var newest = swingSamples[^1];
         float dt = newest.time - oldest.time;
         if (dt <= 0.0001f) return Vector3.zero;
-        return Vector3.ClampMagnitude((newest.pos - oldest.pos) / dt, maxThrowSpeed);
+        var velocity = (newest.pos - oldest.pos) / dt;
+        if (velocity.magnitude < minThrowSpeed) return Vector3.zero; // マウスのブレによるノイズを無視
+        return Vector3.ClampMagnitude(velocity, maxThrowSpeed);
     }
 
     // 放物線の軌道予測線を表示する(重力に従ったシンプルな弾道シミュレーション)
@@ -315,9 +318,9 @@ public class FruitSpawner : MonoBehaviour
         if (modeText == null) return;
         string label = currentMode switch
         {
-            DropMode.Crane => "クレーン",
-            DropMode.LaserPointer => "レーザーポインター",
-            DropMode.ParabolicThrow => "放物線投擲",
+            DropMode.Crane => "Crane (クレーン)",
+            DropMode.LaserPointer => "Laser (レーザー)",
+            DropMode.ParabolicThrow => "Throw (とうてき)",
             _ => currentMode.ToString(),
         };
         modeText.text = $"モード: {label} ";
@@ -338,8 +341,8 @@ public class FruitSpawner : MonoBehaviour
         previewFruit.GetComponent<Fruit>().Initialize(nextData);
         UpdatePreviewVisibility();
 
-        if (fruitText != null) fruitText.text = "次のフルーツ: " + nextData.fruitName;
-        if (nextFruitText != null) nextFruitText.text = "今のフルーツ" + upcomingData.fruitName;
+        if (fruitText != null) fruitText.text = "先のフルーツ: " + nextData.fruitName;
+        if (nextFruitText != null) nextFruitText.text = "今のフルーツ: " + upcomingData.fruitName;
     }
 
     // クレーン/レーザーはその場に落とす(velocity = 0)、放物線投擲は推定したスイング速度で投げる
