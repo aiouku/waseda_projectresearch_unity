@@ -49,7 +49,7 @@ public class FruitSpawner : MonoBehaviour
     {
         Fruit.OnMergeRequest += HandleMerge;
         // コントローラーのトリガーボタンでの投擲用(実機が無い場合は単に押されない状態になるだけ)
-        throwButtonAction = new InputAction(binding: "<XRController>{RightHand}/triggerButton");
+        throwButtonAction = new InputAction(binding: "<XRController>{RightHand}/triggerPressed");
         throwButtonAction.Enable();
     }
 
